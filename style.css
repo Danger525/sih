@@ -1508,6 +1508,32 @@ select.form-control {
   gap: var(--space-8);
 }
 
+/* Manual Override Modal */
+.manual-attendance-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-12);
+  background: var(--color-bg-8);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-card-border-inner);
+  margin-bottom: var(--space-8);
+}
+
+.attendance-toggle {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.attendance-toggle .btn {
+  min-width: 80px;
+}
+
+.attendance-toggle .btn.btn--primary {
+  background: var(--color-primary);
+  color: var(--color-btn-primary-text);
+}
+
 /* Camera Modal */
 .camera-modal {
   position: fixed;
