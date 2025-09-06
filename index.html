@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartAttend - Automated Attendance System</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="app-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <h1 class="app-title">SmartAttend</h1>
+                    <span class="tagline">Turn roll-call into a snapshot</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn--sm btn--outline" id="languageToggle">
+                        <span class="current-lang">EN</span> / HI
+                    </button>
+                    <div class="status-indicator online">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Online</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Navigation -->
+    <nav class="main-nav">
+        <div class="container">
+            <div class="nav-items">
+                <button class="nav-item active" data-page="dashboard">Dashboard</button>
+                <button class="nav-item" data-page="attendance">Take Attendance</button>
+                <button class="nav-item" data-page="students">Students</button>
+                <button class="nav-item" data-page="reports">Reports</button>
+                <button class="nav-item" data-page="settings">Settings</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Dashboard Page -->
+            <div id="dashboard-page" class="page active">
+                <div class="page-header">
+                    <h2>Dashboard</h2>
+                    <p class="page-subtitle" id="schoolInfo">School Name - Class 10A</p>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card primary">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="totalStudents">8</h3>
+                            <p class="stat-label">Total Students</p>
+                        </div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="presentToday">6</h3>
+                            <p class="stat-label">Present Today</p>
+                        </div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="absentToday">2</h3>
+                            <p class="stat-label">Absent Today</p>
+                        </div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="attendanceRate">86.9%</h3>
+                            <p class="stat-label">Attendance Rate</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h3>Quick Actions</h3>
+                    <div class="action-cards">
+                        <button class="action-card" data-page="attendance">
+                            <div class="action-icon">📸</div>
+                            <h4>Take Attendance</h4>
+                            <p>Capture class photo for instant attendance</p>
+                        </button>
+                        <button class="action-card" data-page="students">
+                            <div class="action-icon">👨‍🎓</div>
+                            <h4>Manage Students</h4>
+                            <p>Add, edit, or view student profiles</p>
+                        </button>
+                        <button class="action-card" data-page="reports">
+                            <div class="action-icon">📈</div>
+                            <h4>View Reports</h4>
+                            <p>Generate attendance reports and analytics</p>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & Charts -->
+                <div class="dashboard-bottom">
+                    <div class="chart-section">
+                        <h3>Attendance Trends (Last 7 Days)</h3>
+                        <div class="chart-container" style="position: relative; height: 300px;">
+                            <canvas id="attendanceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="notifications-panel">
+                        <h3>Recent Notifications</h3>
+                        <div class="notification-list">
+                            <div class="notification-item">
+                                <span class="notification-icon">📱</span>
+                                <div class="notification-content">
+                                    <p>SMS sent to 8 parents</p>
+                                    <small>2 minutes ago</small>
+                                </div>
+                            </div>
+                            <div class="notification-item">
+                                <span class="notification-icon">🤖</span>
+                                <div class="notification-content">
+                                    <p>AI accuracy: 94.2%</p>
+                                    <small>Today</small>
+                                </div>
+                            </div>
+                            <div class="notification-item">
+                                <span class="notification-icon">☁️</span>
+                                <div class="notification-content">
+                                    <p>Cloud backup completed</p>
+                                    <small>1 hour ago</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Take Attendance Page -->
+            <div id="attendance-page" class="page">
+                <div class="page-header">
+                    <h2>Take Attendance</h2>
+                    <p class="page-subtitle">Upload or capture class photo for automatic attendance</p>
+                </div>
+
+                <div class="attendance-container">
+                    <!-- Photo Upload Section -->
+                    <div class="photo-upload-section">
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-content">
+                                <div class="upload-icon">📷</div>
+                                <h3>Drop class photo here or click to upload</h3>
+                                <p>Supports JPG, PNG, WEBP formats</p>
+                                <div class="upload-buttons">
+                                    <button class="btn btn--primary" id="uploadBtn">Choose File</button>
+                                    <button class="btn btn--secondary" id="cameraBtn">Use Camera</button>
+                                </div>
+                            </div>
+                            <input type="file" id="fileInput" accept="image/*" hidden>
+                        </div>
+                        
+                        <!-- Processing Status -->
+                        <div class="processing-status hidden" id="processingStatus">
+                            <div class="processing-animation">
+                                <div class="spinner"></div>
+                                <h3>Processing Image...</h3>
+                                <p id="processingText">Detecting faces...</p>
+                            </div>
+                        </div>
+
+                        <!-- Image Preview with Face Detection -->
+                        <div class="image-preview hidden" id="imagePreview">
+                            <div class="preview-header">
+                                <h3>Face Detection Results</h3>
+                                <button class="btn btn--sm btn--outline" id="retakeBtn">Retake Photo</button>
+                            </div>
+                            <div class="preview-container">
+                                <img id="previewImage" alt="Class photo">
+                                <div class="face-overlays" id="faceOverlays"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Results Section -->
+                    <div class="attendance-results hidden" id="attendanceResults">
+                        <h3>Attendance Results</h3>
+                        <div class="results-summary">
+                            <div class="summary-item">
+                                <span class="summary-label">Detected:</span>
+                                <span class="summary-value" id="detectedCount">0</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Recognized:</span>
+                                <span class="summary-value" id="recognizedCount">0</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Confidence:</span>
+                                <span class="summary-value" id="confidenceScore">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="student-list" id="studentAttendanceList">
+                            <!-- Student attendance items will be populated here -->
+                        </div>
+
+                        <div class="attendance-actions">
+                            <button class="btn btn--primary btn--lg" id="confirmAttendance">Confirm Attendance</button>
+                            <button class="btn btn--outline btn--lg" id="manualOverride">Manual Override</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students Management Page -->
+            <div id="students-page" class="page">
+                <div class="page-header">
+                    <h2>Student Management</h2>
+                    <div class="page-actions">
+                        <button class="btn btn--primary" id="addStudentBtn">Add Student</button>
+                        <button class="btn btn--outline" id="importBtn">Import CSV</button>
+                        <button class="btn btn--outline" id="exportBtn">Export Data</button>
+                    </div>
+                </div>
+
+                <div class="students-container">
+                    <div class="students-grid" id="studentsGrid">
+                        <!-- Student cards will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Page -->
+            <div id="reports-page" class="page">
+                <div class="page-header">
+                    <h2>Reports & Analytics</h2>
+                    <div class="page-actions">
+                        <select class="form-control" id="reportPeriod">
+                            <option value="daily">Daily Report</option>
+                            <option value="weekly">Weekly Report</option>
+                            <option value="monthly">Monthly Report</option>
+                        </select>
+                        <button class="btn btn--primary" id="exportReportBtn">Export PDF</button>
+                    </div>
+                </div>
+
+                <div class="reports-container">
+                    <div class="report-stats">
+                        <div class="stat-card">
+                            <h4>Total Days</h4>
+                            <p class="stat-number">22</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Average Attendance</h4>
+                            <p class="stat-number">86.9%</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>SMS Notifications</h4>
+                            <p class="stat-number">176</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>AI Accuracy</h4>
+                            <p class="stat-number">94.2%</p>
+                        </div>
+                    </div>
+
+                    <div class="charts-section">
+                        <div class="chart-card">
+                            <h3>Daily Attendance Pattern</h3>
+                            <div class="chart-container" style="position: relative; height: 300px;">
+                                <canvas id="dailyChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Student-wise Attendance</h3>
+                            <div class="chart-container" style="position: relative; height: 300px;">
+                                <canvas id="studentChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detailed-report">
+                        <h3>Detailed Attendance Log</h3>
+                        <div class="report-table">
+                            <table id="attendanceTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Student Name</th>
+                                        <th>Status</th>
+                                        <th>Time</th>
+                                        <th>Method</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendanceTableBody">
+                                    <!-- Table rows will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div id="settings-page" class="page">
+                <div class="page-header">
+                    <h2>Settings</h2>
+                    <p class="page-subtitle">Configure system preferences and security settings</p>
+                </div>
+
+                <div class="settings-container">
+                    <div class="settings-section">
+                        <h3>School Information</h3>
+                        <div class="form-group">
+                            <label class="form-label">School Name</label>
+                            <input type="text" class="form-control" id="schoolNameInput" placeholder="Enter school name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Principal Name</label>
+                            <input type="text" class="form-control" id="principalNameInput" placeholder="Enter principal name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">School Address</label>
+                            <textarea class="form-control" id="schoolAddressInput" placeholder="Enter school address"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>AI Recognition Settings</h3>
+                        <div class="form-group">
+                            <label class="form-label">Recognition Threshold</label>
+                            <input type="range" class="form-control" min="0.7" max="0.99" step="0.01" value="0.85">
+                            <small>Current: 85% (Recommended: 80-90%)</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Anti-Spoofing Level</label>
+                            <select class="form-control">
+                                <option value="high">High Security</option>
+                                <option value="medium" selected>Medium Security</option>
+                                <option value="low">Low Security</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Notifications</h3>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <label>
+                                    <input type="checkbox" checked> Send SMS to parents
+                                </label>
+                            </div>
+                            <div class="checkbox-group">
+                                <label>
+                                    <input type="checkbox" checked> Daily attendance reports
+                                </label>
+                            </div>
+                            <div class="checkbox-group">
+                                <label>
+                                    <input type="checkbox"> Weekly summary reports
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>System Status</h3>
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <span class="status-label">GDPR Compliance</span>
+                                <span class="status status--success">Enabled</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Data Encryption</span>
+                                <span class="status status--success">AES-256</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Cloud Backup</span>
+                                <span class="status status--success">Active</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Offline Mode</span>
+                                <span class="status status--info">Available</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button class="btn btn--primary">Save Settings</button>
+                        <button class="btn btn--outline">Reset to Defaults</button>
+                        <button class="btn btn--outline btn--sm">Export Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Student Modal -->
+    <div class="modal hidden" id="studentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add Student</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="studentForm">
+                    <div class="form-group">
+                        <label class="form-label">Student Name</label>
+                        <input type="text" class="form-control" id="studentName" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Roll Number</label>
+                        <input type="text" class="form-control" id="rollNumber" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Class</label>
+                        <select class="form-control" id="studentClass" required>
+                            <option value="10A">10A</option>
+                            <option value="10B">10B</option>
+                            <option value="9A">9A</option>
+                            <option value="9B">9B</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Parent Phone</label>
+                        <input type="tel" class="form-control" id="parentPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Student Photo</label>
+                        <input type="file" class="form-control" id="studentPhoto" accept="image/*">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--outline" id="cancelBtn">Cancel</button>
+                <button class="btn btn--primary" id="saveStudentBtn">Save Student</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast hidden" id="toast">
+        <div class="toast-content">
+            <span class="toast-icon">✅</span>
+            <span class="toast-message">Attendance saved successfully!</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
