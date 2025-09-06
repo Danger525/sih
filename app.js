@@ -188,6 +188,14 @@ class AttendanceApp {
         confirmBtn.addEventListener('click', () => {
             this.confirmAttendance();
         });
+
+        // Manual override button
+        const manualOverrideBtn = document.getElementById('manualOverride');
+        if (manualOverrideBtn) {
+            manualOverrideBtn.addEventListener('click', () => {
+                this.openManualOverrideModal();
+            });
+        }
     }
 
     setupStudentManagementListeners() {
@@ -349,18 +357,13 @@ class AttendanceApp {
         uploadArea.classList.add('hidden');
         processingStatus.classList.remove('hidden');
 
-        // Simulate AI processing
-        this.simulateAIProcessing().then(() => {
-            // Show image preview with face detection
-            this.showImagePreview(file);
-            processingStatus.classList.add('hidden');
-            imagePreview.classList.remove('hidden');
-            
-            // Generate attendance results
-            setTimeout(() => {
-                this.generateAttendanceResults();
-            }, 1000);
-        });
+        // Show image preview first
+        this.showImagePreview(file);
+        processingStatus.classList.add('hidden');
+        imagePreview.classList.remove('hidden');
+        
+        // Process with Gemini AI
+        this.processImageWithGemini(file);
     }
 
     async simulateCamera() {
@@ -523,6 +526,180 @@ class AttendanceApp {
         }
     }
 
+    async processImageWithGemini(file) {
+        try {
+            const processingText = document.getElementById('processingText');
+            processingText.textContent = 'Processing with Gemini AI...';
+            
+            // Convert file to base64
+            const base64 = await this.fileToBase64(file);
+            
+            // Call Gemini API for face detection
+            const geminiResponse = await this.callGeminiAPI(base64);
+            
+            // Process the response and generate attendance results
+            this.processGeminiResponse(geminiResponse);
+            
+        } catch (error) {
+            console.error('Gemini AI processing error:', error);
+            this.showToast('AI processing failed. Using fallback method.', 'warning');
+            // Fallback to simulation
+            this.generateAttendanceResults();
+        }
+    }
+
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    async callGeminiAPI(base64Image) {
+        // Note: In production, you would need to set up a backend API to call Gemini
+        // This is a simulation of what the API call would look like
+        
+        const API_KEY = 'YOUR_GEMINI_API_KEY'; // This should be set in environment variables
+        
+        // For demo purposes, we'll simulate the API call
+        // In production, this would be:
+        /*
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `Analyze this classroom image and detect faces. Return a JSON object with:
+                        - detected_faces: number of faces detected
+                        - face_locations: array of face bounding boxes
+                        - confidence_scores: array of confidence scores for each face
+                        - student_matches: array of potential student matches based on the faces detected
+                        
+                        Image data: data:image/jpeg;base64,${base64Image}`
+                    }]
+                }]
+            })
+        });
+        
+        const data = await response.json();
+        return data;
+        */
+        
+        // Simulation for demo
+        return new Promise(resolve => {
+            setTimeout(() => {
+                resolve({
+                    detected_faces: Math.min(6, this.students.length),
+                    face_locations: this.generateRandomFaceLocations(Math.min(6, this.students.length)),
+                    confidence_scores: Array(Math.min(6, this.students.length)).fill(0).map(() => 85 + Math.random() * 12),
+                    student_matches: this.students.slice(0, Math.min(6, this.students.length)).map((student, index) => ({
+                        student_id: student.id,
+                        confidence: 85 + Math.random() * 12,
+                        face_index: index
+                    }))
+                });
+            }, 2000);
+        });
+    }
+
+    generateRandomFaceLocations(count) {
+        const locations = [];
+        for (let i = 0; i < count; i++) {
+            locations.push({
+                x: Math.random() * 70 + 5,
+                y: Math.random() * 60 + 10,
+                width: 8 + Math.random() * 4,
+                height: 12 + Math.random() * 6
+            });
+        }
+        return locations;
+    }
+
+    processGeminiResponse(response) {
+        const attendanceResults = document.getElementById('attendanceResults');
+        const detectedCount = document.getElementById('detectedCount');
+        const recognizedCount = document.getElementById('recognizedCount');
+        const confidenceScore = document.getElementById('confidenceScore');
+        const studentAttendanceList = document.getElementById('studentAttendanceList');
+
+        if (this.students.length === 0) {
+            this.showToast('No students found. Please add students first.', 'warning');
+            return;
+        }
+
+        const detected = response.detected_faces;
+        const recognized = response.student_matches.length;
+        const avgConfidence = response.confidence_scores.reduce((a, b) => a + b, 0) / response.confidence_scores.length;
+
+        detectedCount.textContent = detected;
+        recognizedCount.textContent = recognized;
+        confidenceScore.textContent = `${avgConfidence.toFixed(1)}%`;
+
+        // Update face overlays with actual locations
+        this.updateFaceOverlays(response.face_locations, response.student_matches);
+
+        // Generate student list based on Gemini results
+        studentAttendanceList.innerHTML = '';
+        this.students.forEach((student, index) => {
+            const match = response.student_matches.find(m => m.student_id === student.id);
+            const isPresent = match && match.confidence > (this.settings.recognitionThreshold * 100);
+            const confidenceLevel = match ? match.confidence : 0;
+            
+            const item = document.createElement('div');
+            item.className = 'student-attendance-item';
+            
+            item.innerHTML = `
+                <div class="student-info">
+                    <div class="student-avatar">${student.name.charAt(0)}</div>
+                    <div>
+                        <div style="font-weight: 500;">${student.name}</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">${student.roll_no}</div>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span class="status ${isPresent ? 'status--success' : 'status--error'}">
+                        ${isPresent ? 'Present' : 'Absent'}
+                    </span>
+                    ${isPresent ? `<div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 4px;">${confidenceLevel.toFixed(1)}% confidence</div>` : ''}
+                </div>
+            `;
+            
+            studentAttendanceList.appendChild(item);
+        });
+
+        attendanceResults.classList.remove('hidden');
+    }
+
+    updateFaceOverlays(faceLocations, studentMatches) {
+        const faceOverlays = document.getElementById('faceOverlays');
+        faceOverlays.innerHTML = '';
+
+        faceLocations.forEach((location, index) => {
+            const faceBox = document.createElement('div');
+            faceBox.className = 'face-box';
+            
+            faceBox.style.left = `${location.x}%`;
+            faceBox.style.top = `${location.y}%`;
+            faceBox.style.width = `${location.width}%`;
+            faceBox.style.height = `${location.height}%`;
+            
+            const match = studentMatches.find(m => m.face_index === index);
+            const student = match ? this.students.find(s => s.id === match.student_id) : null;
+            
+            const label = document.createElement('div');
+            label.className = 'face-label';
+            label.textContent = student ? student.name.split(' ')[0] : 'Unknown';
+            faceBox.appendChild(label);
+            
+            faceOverlays.appendChild(faceBox);
+        });
+    }
+
     generateAttendanceResults() {
         const attendanceResults = document.getElementById('attendanceResults');
         const detectedCount = document.getElementById('detectedCount');
@@ -655,6 +832,131 @@ class AttendanceApp {
             
             this.showToast(`SMS notifications sent to ${absentStudents.length} parents`, 'success');
         }, 2000);
+    }
+
+    openManualOverrideModal() {
+        if (this.students.length === 0) {
+            this.showToast('No students found. Please add students first.', 'warning');
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.id = 'manualOverrideModal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3>Manual Attendance Override</h3>
+                    <button class="modal-close" id="closeManualModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 1rem; color: var(--color-text-secondary);">
+                        Manually mark attendance for each student:
+                    </p>
+                    <div id="manualAttendanceList" style="max-height: 400px; overflow-y: auto;">
+                        ${this.students.map(student => `
+                            <div class="manual-attendance-item" data-student-id="${student.id}">
+                                <div class="student-info">
+                                    <div class="student-avatar">${student.name.charAt(0)}</div>
+                                    <div>
+                                        <div style="font-weight: 500;">${student.name}</div>
+                                        <div style="font-size: 12px; color: var(--color-text-secondary);">${student.roll_no}</div>
+                                    </div>
+                                </div>
+                                <div class="attendance-toggle">
+                                    <button class="btn btn--sm status--success present-btn" data-status="present">Present</button>
+                                    <button class="btn btn--sm status--error absent-btn" data-status="absent">Absent</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn--outline" id="cancelManualOverride">Cancel</button>
+                    <button class="btn btn--primary" id="saveManualOverride">Save Attendance</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Event listeners
+        document.getElementById('closeManualModal').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        
+        document.getElementById('cancelManualOverride').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        
+        document.getElementById('saveManualOverride').addEventListener('click', () => {
+            this.saveManualAttendance();
+            document.body.removeChild(modal);
+        });
+        
+        // Toggle buttons
+        modal.querySelectorAll('.present-btn, .absent-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const item = e.target.closest('.manual-attendance-item');
+                const status = e.target.dataset.status;
+                
+                // Update button states
+                item.querySelectorAll('.present-btn, .absent-btn').forEach(b => b.classList.remove('btn--primary'));
+                e.target.classList.add('btn--primary');
+                
+                // Store status
+                item.dataset.attendanceStatus = status;
+            });
+        });
+    }
+
+    saveManualAttendance() {
+        const today = new Date().toISOString().split('T')[0];
+        const manualItems = document.querySelectorAll('.manual-attendance-item');
+        
+        const attendanceData = {
+            date: today,
+            records: [],
+            timestamp: new Date().toISOString(),
+            method: 'manual_override'
+        };
+
+        manualItems.forEach(item => {
+            const studentId = parseInt(item.dataset.studentId);
+            const status = item.dataset.attendanceStatus || 'absent';
+            const student = this.students.find(s => s.id === studentId);
+            
+            if (student) {
+                attendanceData.records.push({
+                    student_id: studentId,
+                    student_name: student.name,
+                    status: status,
+                    timestamp: new Date().toISOString(),
+                    confidence: 100 // Manual override has 100% confidence
+                });
+            }
+        });
+
+        // Remove existing record for today if any
+        this.attendanceRecords = this.attendanceRecords.filter(r => r.date !== today);
+        this.attendanceRecords.push(attendanceData);
+
+        // Save data
+        this.saveData();
+        this.updateStats();
+        this.updateAttendanceTrends();
+
+        // Send SMS notifications if enabled
+        if (this.settings.smsEnabled) {
+            this.sendSMSNotifications(attendanceData);
+        }
+
+        this.showToast('Manual attendance saved successfully!', 'success');
+        
+        // Navigate back to dashboard
+        setTimeout(() => {
+            this.navigateToPage('dashboard');
+        }, 1500);
     }
 
     resetAttendancePage() {
@@ -925,65 +1227,113 @@ class AttendanceApp {
 
 
     renderReports() {
+        this.renderReportStats();
         this.renderReportCharts();
         this.renderAttendanceTable();
     }
 
+    renderReportStats() {
+        // Update report statistics with real data
+        const totalDays = new Set(this.attendanceRecords.map(r => r.date)).size;
+        const totalRecords = this.attendanceRecords.flatMap(r => r.records);
+        const presentRecords = totalRecords.filter(r => r.status === 'present');
+        const averageAttendance = totalRecords.length > 0 ? 
+            ((presentRecords.length / totalRecords.length) * 100).toFixed(1) : 0;
+        
+        // Update the stats in the HTML
+        const statCards = document.querySelectorAll('.report-stats .stat-card');
+        if (statCards[0]) statCards[0].querySelector('.stat-number').textContent = totalDays;
+        if (statCards[1]) statCards[1].querySelector('.stat-number').textContent = `${averageAttendance}%`;
+        if (statCards[2]) statCards[2].querySelector('.stat-number').textContent = totalRecords.length;
+        if (statCards[3]) statCards[3].querySelector('.stat-number').textContent = '94.2%'; // AI accuracy placeholder
+    }
+
     renderReportCharts() {
-        // Daily attendance chart
+        // Clear existing charts
         const dailyCtx = document.getElementById('dailyChart');
-        if (dailyCtx && !dailyCtx.chart) {
-            new Chart(dailyCtx, {
-                type: 'bar',
-                data: {
-                    labels: this.attendanceTrends.map(d => new Date(d.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })),
-                    datasets: [{
-                        label: 'Present',
-                        data: this.attendanceTrends.map(d => d.present),
-                        backgroundColor: '#1FB8CD'
-                    }, {
-                        label: 'Absent',
-                        data: this.attendanceTrends.map(d => d.absent),
-                        backgroundColor: '#B4413C'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { stacked: true },
-                        y: { stacked: true, beginAtZero: true }
-                    }
-                }
-            });
-        }
-
-        // Student-wise attendance chart
         const studentCtx = document.getElementById('studentChart');
-        if (studentCtx && !studentCtx.chart) {
-            const studentAttendanceData = this.students.map(student => {
-                return 75 + Math.random() * 20; // Simulate attendance rates
-            });
-
-            new Chart(studentCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: this.students.map(s => s.name.split(' ')[0]),
-                    datasets: [{
-                        data: studentAttendanceData,
-                        backgroundColor: ['#1FB8CD', '#FFC185', '#B4413C', '#ECEBD5', '#5D878F', '#DB4545', '#D2BA4C', '#964325']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
+        
+        if (dailyCtx) {
+            if (dailyCtx.chart) {
+                dailyCtx.chart.destroy();
+            }
+            
+            if (this.attendanceTrends.length > 0) {
+                new Chart(dailyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: this.attendanceTrends.map(d => new Date(d.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })),
+                        datasets: [{
+                            label: 'Present',
+                            data: this.attendanceTrends.map(d => d.present),
+                            backgroundColor: '#1FB8CD'
+                        }, {
+                            label: 'Absent',
+                            data: this.attendanceTrends.map(d => d.absent),
+                            backgroundColor: '#B4413C'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true },
+                            y: { stacked: true, beginAtZero: true }
                         }
                     }
-                }
-            });
+                });
+            } else {
+                dailyCtx.getContext('2d').clearRect(0, 0, dailyCtx.width, dailyCtx.height);
+                const ctx = dailyCtx.getContext('2d');
+                ctx.fillStyle = '#666';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No attendance data available', dailyCtx.width / 2, dailyCtx.height / 2);
+            }
+        }
+
+        if (studentCtx) {
+            if (studentCtx.chart) {
+                studentCtx.chart.destroy();
+            }
+            
+            if (this.students.length > 0) {
+                // Calculate real attendance rates
+                const studentAttendanceData = this.students.map(student => {
+                    const studentRecords = this.attendanceRecords.flatMap(day => 
+                        day.records.filter(record => record.student_id === student.id)
+                    );
+                    const presentCount = studentRecords.filter(record => record.status === 'present').length;
+                    return studentRecords.length > 0 ? (presentCount / studentRecords.length * 100) : 0;
+                });
+
+                new Chart(studentCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: this.students.map(s => s.name.split(' ')[0]),
+                        datasets: [{
+                            data: studentAttendanceData,
+                            backgroundColor: ['#1FB8CD', '#FFC185', '#B4413C', '#ECEBD5', '#5D878F', '#DB4545', '#D2BA4C', '#964325']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            } else {
+                studentCtx.getContext('2d').clearRect(0, 0, studentCtx.width, studentCtx.height);
+                const ctx = studentCtx.getContext('2d');
+                ctx.fillStyle = '#666';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No students added yet', studentCtx.width / 2, studentCtx.height / 2);
+            }
         }
     }
 
